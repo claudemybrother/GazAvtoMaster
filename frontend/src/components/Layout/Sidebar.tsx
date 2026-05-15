@@ -1,10 +1,14 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 interface SidebarProps {
   stats?: { totalCars: number; availableCars: number; totalClients: number; totalDeals: number }
 }
 
 export default function Sidebar({ stats }: SidebarProps) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'Администратор'
+
   return (
     <aside className="sidebar">
       <div className="sidebar__section">
@@ -16,9 +20,19 @@ export default function Sidebar({ stats }: SidebarProps) {
           <li><NavLink to="/deals">💼 Сделки</NavLink></li>
           <li><NavLink to="/reservations">📋 Бронирования</NavLink></li>
           <li><NavLink to="/test-drives">🔑 Тест-драйвы</NavLink></li>
-          <li><NavLink to="/employees">👔 Сотрудники</NavLink></li>
         </ul>
       </div>
+
+      {isAdmin && (
+        <div className="sidebar__section">
+          <div className="sidebar__title">Администрирование</div>
+          <ul className="sidebar__list">
+            <li><NavLink to="/admin">👔 Сотрудники</NavLink></li>
+            <li><NavLink to="/admin/audit">📜 Журнал аудита</NavLink></li>
+            <li><NavLink to="/admin/references">🗂 Справочники</NavLink></li>
+          </ul>
+        </div>
+      )}
 
       {stats && (
         <div className="sidebar__section">
@@ -37,13 +51,6 @@ export default function Sidebar({ stats }: SidebarProps) {
           </div>
         </div>
       )}
-
-      <div className="sidebar__section">
-        <div className="sidebar__title">Справочники</div>
-        <ul className="sidebar__list">
-          <li><NavLink to="/cars">🏷️ Марки и модели</NavLink></li>
-        </ul>
-      </div>
     </aside>
   )
 }

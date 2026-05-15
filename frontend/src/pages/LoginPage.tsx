@@ -19,8 +19,8 @@ export default function LoginPage() {
       const { data } = await authApi.login({ login, password })
       doLogin(data)
       navigate('/')
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Ошибка входа. Проверьте логин и пароль.')
+    } catch {
+      setError('Неверный логин или пароль')
     } finally {
       setLoading(false)
     }
@@ -36,12 +36,7 @@ export default function LoginPage() {
         </div>
         <div className="login-box__body">
           <form onSubmit={handleSubmit}>
-            {error && <div className="error-msg">⚠️ {error}</div>}
-            <div className="forum-panel" style={{ marginBottom: 16, background: '#f0f4e8', borderColor: '#c0c8a8' }}>
-              <div className="forum-panel__body" style={{ padding: '8px 12px', fontSize: 11, color: '#556' }}>
-                <b>Тестовый вход:</b> логин <b>123</b>, пароль <b>123</b>
-              </div>
-            </div>
+            {error && <div className="error-msg">⚠ {error}</div>}
             <div className="form-group">
               <label className="form-label" htmlFor="login">Логин</label>
               <input
@@ -59,7 +54,7 @@ export default function LoginPage() {
               />
             </div>
             <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? '⏳ Вход...' : '→ Войти в систему'}
+              {loading ? 'Вход...' : 'Войти в систему'}
             </button>
           </form>
         </div>

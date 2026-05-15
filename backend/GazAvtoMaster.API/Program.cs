@@ -1,19 +1,25 @@
 using System.Text;
+using GazAvtoMaster.API.Data;
 using GazAvtoMaster.API.Hubs;
 using GazAvtoMaster.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<AuditService>();
 
 builder.Services.AddCors(opt => opt.AddPolicy("AllowAll", p =>
-    p.WithOrigins("http://localhost:5173", "http://localhost:80", "http://frontend")
+    p.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:80", "http://frontend")
      .AllowAnyHeader()
      .AllowAnyMethod()
      .AllowCredentials()));
@@ -48,6 +54,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {

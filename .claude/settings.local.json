@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(dotnet ef *)",
+      "Bash(dotnet restore *)",
+      "Bash(docker-compose up *)",
+      "Bash(pg_isready)",
+      "Bash(echo \"exit: $?\")",
+      "PowerShell(winget install PostgreSQL.PostgreSQL.16 --accept-source-agreements --accept-package-agreements 2>&1)",
+      "Bash(dotnet run *)",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -c \"SELECT 1;\")",
+      "Bash(PGPASSWORD=postgres dotnet run)",
+      "Bash(npm run *)",
+      "Bash(pkill -f \"dotnet run\")",
+      "Bash(pkill -f \"GazAvtoMaster\")",
+      "Bash(dotnet build *)",
+      "Bash(cd \"C:/Users/4123/Desktop/Документы/dipl/GazAvtoMaster/.claude/worktrees/upbeat-galileo-dbee7e/frontend\" && npm run dev > /tmp/vite.log 2>&1 & *)",
+      "Bash(npx tsc *)",
+      "PowerShell(Start-Sleep -Seconds 12; try { $b = Invoke-WebRequest -Uri \"http://localhost:5000/api/references/statuses\" -Headers @{Authorization=\"Bearer x\"} -UseBasicParsing -EA Stop; \"Backend: OK \\($\\($b.StatusCode\\)\\)\" } catch { \"Backend: HTTP $\\($_.Exception.Response.StatusCode.Value__\\)\" }; try { $f = Invoke-WebRequest -Uri \"http://localhost:5174\" -UseBasicParsing -EA Stop; \"Frontend: OK \\($\\($f.StatusCode\\)\\)\" } catch { \"Frontend: Error - $_\" })",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 2; Start-Process -FilePath \"cmd\" -ArgumentList \"/k\",\"cd /d `\"C:\\\\Users\\\\4123\\\\Desktop\\\\Документы\\\\dipl\\\\GazAvtoMaster\\\\.claude\\\\worktrees\\\\upbeat-galileo-dbee7e\\\\frontend`\" && npm run dev\" -WindowStyle Normal; Start-Sleep -Seconds 10; try { Invoke-WebRequest -Uri \"http://localhost:5173\" -UseBasicParsing -EA Stop | Out-Null; \"Frontend: OK\" } catch { \"Error: $_\" })",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

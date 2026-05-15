@@ -7,7 +7,7 @@ namespace GazAvtoMaster.API.Services;
 
 public class JwtService(IConfiguration config)
 {
-    public string Generate(int employeeId, string login, string role)
+    public string Generate(int employeeId, string login, string role, string fullName = "")
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Secret"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -16,6 +16,8 @@ public class JwtService(IConfiguration config)
             new Claim(ClaimTypes.NameIdentifier, employeeId.ToString()),
             new Claim(ClaimTypes.Name, login),
             new Claim(ClaimTypes.Role, role),
+            new Claim("employeeId", employeeId.ToString()),
+            new Claim("fullName", fullName),
         };
         var token = new JwtSecurityToken(
             issuer: config["Jwt:Issuer"],

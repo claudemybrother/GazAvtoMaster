@@ -46,3 +46,25 @@ export interface BrandDto { brandId: number; brandName: string; country: string 
 export interface ModelDto { modelId: number; brandId: number; brandName: string; modelName: string; bodyType: string; engineVol: number; fuelType: string }
 export interface StatusDto { statusId: number; statusName: string }
 export interface RoleDto { roleId: number; roleName: string }
+
+export interface MonthlyRevenueDto { month: string; revenue: number; count: number }
+export interface TopModelDto { model: string; count: number }
+export interface StatusDistDto { name: string; value: number }
+
+export interface ClientDetailsDto {
+  client: ClientDto
+  deals: DealDto[]
+  reservations: ReservationDto[]
+  testDrives: TestDriveDto[]
+}
+
+export interface AuditLogDto {
+  id: number
+  entityType: string
+  entityId: number
+  action: string
+  employeeId: number
+  employeeName: string
+  changesJson: string
+  createdAt: string
+}

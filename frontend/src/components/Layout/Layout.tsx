@@ -16,7 +16,7 @@ export default function Layout({ children, stats }: LayoutProps) {
         <main className="page-content">{children}</main>
       </div>
       <footer className="site-footer">
-        © 2024 ООО «ГазАвтоМастер» — Система управления автосалоном v1.0
+        © 2026 ООО «ГазАвтоМастер» — Система управления автосалоном v1.0
       </footer>
     </div>
   )

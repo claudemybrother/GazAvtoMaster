@@ -1,79 +1,79 @@
 import { useEffect, useState } from 'react'
-import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-  type DragEndEvent
-} from '@dnd-kit/core'
-import {
-  SortableContext, verticalListSortingStrategy, useSortable
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { carsApi } from '../api/endpoints'
-import type { CarDto } from '../types'
+import { carsApi, refsApi } from '../api/endpoints'
+import type { CarDto, ModelDto, StatusDto } from '../types'
 import Layout from '../components/Layout/Layout'
+import Modal from '../components/UI/Modal'
 
 const fmtPrice = (n: number) => n.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 })
 
-const STATUS_MAP: Record<number, { label: string; badge: string; col: string }> = {
-  1: { label: 'В наличии',    badge: 'badge--available', col: 'available' },
-  2: { label: 'Зарезервирован', badge: 'badge--reserved', col: 'reserved' },
-  3: { label: 'Продан',       badge: 'badge--sold',      col: 'sold' },
-}
+const STATUS_CLASS: Record<number, string> = { 1: 'badge--available', 2: 'badge--reserved', 3: 'badge--sold' }
 
-function KanbanCard({ car }: { car: CarDto }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: car.carId })
-  return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`kanban-card${isDragging ? ' kanban-card--dragging' : ''}`}
-      {...attributes} {...listeners}
-    >
-      <div className="kanban-card__title">{car.brandName} {car.modelName}</div>
-      <div className="kanban-card__meta">
-        📅 {car.year} · 🎨 {car.color}<br />
-        🛣️ {car.mileage.toLocaleString('ru-RU')} км<br />
-        VIN: <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{car.vin.slice(-6)}</span>
-      </div>
-      <div className="kanban-card__price">{fmtPrice(car.price)}</div>
-    </div>
-  )
-}
+const EMPTY_FORM = { vin: '', modelId: 0, year: new Date().getFullYear(), color: '', mileage: 0, price: 0, statusId: 1, arrivalDate: new Date().toISOString().slice(0, 10), notes: '' }
 
 export default function CarsPage() {
   const [cars, setCars] = useState<CarDto[]>([])
+  const [models, setModels] = useState<ModelDto[]>([])
+  const [statuses, setStatuses] = useState<StatusDto[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'table' | 'kanban'>('table')
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState(0)
-
-  const sensors = useSensors(useSensor(PointerSensor))
+  const [modal, setModal] = useState<'add' | 'edit' | null>(null)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [editId, setEditId] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    carsApi.getAll().then(r => setCars(r.data)).finally(() => setLoading(false))
+    Promise.all([
+      carsApi.getAll().then(r => setCars(r.data)),
+      refsApi.getModels().then(r => setModels(r.data)),
+      refsApi.getStatuses().then(r => setStatuses(r.data)),
+    ]).finally(() => setLoading(false))
   }, [])
 
   const filtered = cars.filter(c => {
     const q = search.toLowerCase()
-    const matchSearch = !q || `${c.brandName} ${c.modelName} ${c.vin} ${c.color}`.toLowerCase().includes(q)
-    const matchStatus = !filterStatus || c.statusId === filterStatus
-    return matchSearch && matchStatus
+    return (!q || `${c.brandName} ${c.modelName} ${c.vin} ${c.color}`.toLowerCase().includes(q))
+      && (!filterStatus || c.statusId === filterStatus)
   })
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    // over.id может быть column id (число — statusId) или carId
-    const newStatusId = typeof over.id === 'string' && over.id.startsWith('col-')
-      ? parseInt(over.id.replace('col-', ''))
-      : null
-    if (!newStatusId) return
-    const carId = active.id as number
-    setCars(prev => prev.map(c => c.carId === carId ? { ...c, statusId: newStatusId, statusName: STATUS_MAP[newStatusId].label } : c))
-    await carsApi.updateStatus(carId, newStatusId)
+  const openAdd = () => {
+    setForm({ ...EMPTY_FORM, modelId: models[0]?.modelId ?? 0 })
+    setEditId(null); setError(''); setModal('add')
   }
 
-  const columns = [1, 2, 3]
+  const openEdit = (c: CarDto) => {
+    setForm({
+      vin: c.vin, modelId: c.modelId, year: c.year, color: c.color,
+      mileage: c.mileage, price: c.price, statusId: c.statusId,
+      arrivalDate: c.arrivalDate.slice(0, 10), notes: c.notes ?? ''
+    })
+    setEditId(c.carId); setError(''); setModal('edit')
+  }
+
+  const handleSave = async () => {
+    setSaving(true); setError('')
+    try {
+      const payload = { ...form, arrivalDate: new Date(form.arrivalDate).toISOString() }
+      if (modal === 'add') {
+        const { data } = await carsApi.create(payload)
+        setCars(prev => [...prev, data])
+      } else if (editId != null) {
+        const { data } = await carsApi.update(editId, payload)
+        setCars(prev => prev.map(c => c.carId === editId ? data : c))
+      }
+      setModal(null)
+    } catch { setError('Ошибка сохранения') } finally { setSaving(false) }
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Удалить автомобиль?')) return
+    await carsApi.delete(id)
+    setCars(prev => prev.filter(c => c.carId !== id))
+  }
+
+  const fv = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm(prev => ({ ...prev, [k]: ['modelId', 'year', 'mileage', 'statusId'].includes(k) ? Number(e.target.value) : k === 'price' ? parseFloat(e.target.value) || 0 : e.target.value }))
 
   return (
     <Layout>
@@ -82,10 +82,7 @@ export default function CarsPage() {
       <div className="forum-panel">
         <div className="forum-panel__header">
           <span className="forum-panel__title">🚗 Реестр автомобилей</span>
-          <div className="view-toggle">
-            <button className={`view-toggle__btn${view === 'table' ? ' active' : ''}`} onClick={() => setView('table')}>☰ Таблица</button>
-            <button className={`view-toggle__btn${view === 'kanban' ? ' active' : ''}`} onClick={() => setView('kanban')}>⊞ Канбан</button>
-          </div>
+          <button className="btn btn--primary" onClick={openAdd}>+ Добавить автомобиль</button>
         </div>
         <div className="forum-panel__body">
           <div className="toolbar">
@@ -93,23 +90,20 @@ export default function CarsPage() {
               value={search} onChange={e => setSearch(e.target.value)} />
             <select className="toolbar__select" value={filterStatus} onChange={e => setFilterStatus(Number(e.target.value))}>
               <option value={0}>Все статусы</option>
-              <option value={1}>В наличии</option>
-              <option value={2}>Зарезервирован</option>
-              <option value={3}>Продан</option>
+              {statuses.map(s => <option key={s.statusId} value={s.statusId}>{s.statusName}</option>)}
             </select>
             <span className="muted">Найдено: {filtered.length}</span>
           </div>
 
           {loading ? (
             <div className="loading"><span className="spinner" /> Загрузка...</div>
-          ) : view === 'table' ? (
+          ) : (
             <div className="forum-table-wrap">
               <table className="forum-table">
                 <thead>
                   <tr>
                     <th>#</th><th>Марка / Модель</th><th>Год</th><th>Цвет</th>
-                    <th>Пробег</th><th>Цена</th><th>Статус</th>
-                    <th>Дата поступления</th><th>VIN</th>
+                    <th>Пробег</th><th>Цена</th><th>Статус</th><th>VIN</th><th>Действия</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -123,40 +117,90 @@ export default function CarsPage() {
                       <td>{c.color}</td>
                       <td>{c.mileage === 0 ? <span className="badge badge--info">Новый</span> : `${c.mileage.toLocaleString('ru-RU')} км`}</td>
                       <td className="price">{fmtPrice(c.price)}</td>
-                      <td><span className={`badge ${STATUS_MAP[c.statusId]?.badge}`}>{c.statusName}</span></td>
-                      <td className="muted">{new Date(c.arrivalDate).toLocaleDateString('ru-RU')}</td>
+                      <td><span className={`badge ${STATUS_CLASS[c.statusId]}`}>{c.statusName}</span></td>
                       <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.vin}</td>
+                      <td>
+                        <div className="action-btns">
+                          <button className="btn btn--sm btn--edit" onClick={() => openEdit(c)}>✏ Изменить</button>
+                          <button className="btn btn--sm btn--delete" onClick={() => handleDelete(c.carId)}>🗑 Удалить</button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <div className="kanban-board">
-                {columns.map(statusId => {
-                  const colCars = filtered.filter(c => c.statusId === statusId)
-                  const info = STATUS_MAP[statusId]
-                  return (
-                    <div key={statusId} className={`kanban-col kanban-col--${info.col}`}>
-                      <div className="kanban-col__header">
-                        {info.label}
-                        <span className="kanban-col__count">{colCars.length}</span>
-                      </div>
-                      <div className="kanban-col__body">
-                        <SortableContext items={colCars.map(c => c.carId)} strategy={verticalListSortingStrategy}>
-                          {colCars.map(c => <KanbanCard key={c.carId} car={c} />)}
-                        </SortableContext>
-                        {colCars.length === 0 && <div className="empty-state" style={{ padding: 16 }}>Пусто</div>}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </DndContext>
           )}
         </div>
       </div>
+
+      {modal && (
+        <Modal title={modal === 'add' ? 'Добавить автомобиль' : 'Редактировать автомобиль'} onClose={() => setModal(null)}>
+          {error && <div className="error-msg">⚠ {error}</div>}
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">VIN</label>
+              <input className="form-input" value={form.vin} onChange={fv('vin')} maxLength={17} placeholder="17 символов" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Модель</label>
+              <select className="form-input" value={form.modelId} onChange={fv('modelId')}>
+                {models.length === 0
+                  ? <option value={0}>— нет моделей —</option>
+                  : Object.entries(
+                      models.reduce<Record<string, typeof models>>((acc, m) => {
+                        (acc[m.brandName] ??= []).push(m)
+                        return acc
+                      }, {})
+                    ).map(([brand, list]) => (
+                      <optgroup key={brand} label={brand}>
+                        {list.map(m => (
+                          <option key={m.modelId} value={m.modelId}>{m.modelName}</option>
+                        ))}
+                      </optgroup>
+                    ))
+                }
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Год</label>
+              <input className="form-input" type="number" value={form.year} onChange={fv('year')} min={1990} max={2030} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Цвет</label>
+              <input className="form-input" value={form.color} onChange={fv('color')} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Пробег (км)</label>
+              <input className="form-input" type="number" value={form.mileage} onChange={fv('mileage')} min={0} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Цена (руб.)</label>
+              <input className="form-input" type="number" value={form.price} onChange={fv('price')} min={0} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Статус</label>
+              <select className="form-input" value={form.statusId} onChange={fv('statusId')}>
+                {statuses.map(s => <option key={s.statusId} value={s.statusId}>{s.statusName}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Дата поступления</label>
+              <input className="form-input" type="date" value={form.arrivalDate} onChange={fv('arrivalDate')} />
+            </div>
+            <div className="form-group form-group--full">
+              <label className="form-label">Примечания</label>
+              <textarea className="form-input" value={form.notes} onChange={fv('notes')} rows={2} />
+            </div>
+          </div>
+          <div className="modal__footer">
+            <button className="btn btn--secondary" onClick={() => setModal(null)}>Отмена</button>
+            <button className="btn btn--primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </Layout>
   )
 }
