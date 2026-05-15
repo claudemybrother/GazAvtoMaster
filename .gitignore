@@ -16,3 +16,6 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+.claude/worktrees/
+.claude/settings.local.json
